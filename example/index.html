@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>mousepad.js — pointer intelligence for the web</title>
+<meta name="description" content="Gestures, cursor effects, and trackpad smarts. Unified mouse, touch, pen, and trackpad input. 2.9KB gzipped, zero deps." />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1e;
+    --border: #2c2c2e;
+    --text: #f5f5f7;
+    --muted: #98989d;
+    --accent: #30d158;
+    --accent-2: #2997ff;
+    --warn: #ff9f0a;
+    --pink: #ff375f;
+    --purple: #bf5af2;
+    --cyan: #64d2ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+
+  .hero { position: relative; padding: 88px 24px 64px; text-align: center; overflow: hidden; }
+  .hero::before {
+    content: ''; position: absolute; inset: -20% -20% auto -20%; height: 900px; z-index: -1;
+    background:
+      radial-gradient(60% 60% at 50% 30%, rgba(41,151,255,0.18), transparent 60%),
+      radial-gradient(40% 50% at 20% 10%, rgba(191,90,242,0.14), transparent 60%),
+      radial-gradient(40% 50% at 80% 10%, rgba(100,210,255,0.14), transparent 60%);
+    filter: blur(40px);
+    animation: heroPulse 12s ease-in-out infinite;
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0.25;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 40%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 40%, transparent 80%);
+  }
+  @keyframes heroPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 32px; }
+  .badge { padding: 6px 14px; border-radius: 999px; background: rgba(28,28,30,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border); font-size: 12px; color: var(--muted); font-weight: 500; }
+  .badge.accent { color: var(--accent-2); border-color: rgba(41,151,255,0.35); box-shadow: 0 0 24px rgba(41,151,255,0.1); }
+  .badge::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; opacity: 0.6; }
+
+  h1 {
+    font-size: clamp(56px, 11vw, 128px); font-weight: 800; letter-spacing: -0.045em; line-height: 0.95;
+    margin-bottom: 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f5f7 40%, #8e8e93 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h1 .dot { color: var(--accent-2); -webkit-text-fill-color: var(--accent-2); }
+  .tagline { font-size: clamp(18px, 2.2vw, 22px); color: var(--muted); max-width: 700px; margin: 0 auto 40px; line-height: 1.5; }
+
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-bottom: 48px; }
+  .btn { padding: 14px 24px; border-radius: 12px; border: 1px solid var(--border); background: rgba(28,28,30,0.6); backdrop-filter: blur(10px); color: var(--text); font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn:hover { background: var(--surface-2); border-color: var(--muted); transform: translateY(-1px); }
+  .btn.primary { background: var(--accent-2); color: #fff; border-color: var(--accent-2); box-shadow: 0 8px 32px rgba(41,151,255,0.3); }
+  .btn.primary:hover { filter: brightness(1.1); box-shadow: 0 12px 40px rgba(41,151,255,0.4); }
+
+  /* Hero playground */
+  .playground { position: relative; height: 440px; width: 100%; max-width: 900px; margin: 0 auto 48px; background: rgba(20,20,20,0.6); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.5); overflow: hidden; cursor: none; }
+  .pg-hint { position: absolute; top: 16px; left: 20px; font-size: 13px; color: var(--muted); font-family: 'SF Mono', Menlo, monospace; pointer-events: none; }
+  .pg-hint b { color: var(--text); }
+  .pg-stats { position: absolute; bottom: 16px; left: 20px; font-size: 11px; color: var(--muted); font-family: 'SF Mono', Menlo, monospace; pointer-events: none; }
+  .pg-stats span.val { color: var(--accent-2); }
+  .pg-stats span.kind { color: var(--purple); text-transform: uppercase; font-weight: 700; }
+
+  /* Trail */
+  .trail-dot { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--accent-2); pointer-events: none; box-shadow: 0 0 20px rgba(41,151,255,0.7); mix-blend-mode: screen; }
+  .cursor-ring { position: fixed; top: 0; left: 0; width: 40px; height: 40px; border: 2px solid var(--accent-2); border-radius: 50%; pointer-events: none; z-index: 9999; margin-left: -20px; margin-top: -20px; opacity: 0; transition: opacity 0.2s, width 0.2s, height 0.2s; will-change: transform; }
+  .cursor-ring.show { opacity: 1; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 920px; margin: 0 auto; }
+  @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: rgba(20,20,20,0.5); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: left; }
+  .stat .v { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; font-family: 'SF Mono', Menlo, monospace; }
+  .stat .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .stat .v.g { background: linear-gradient(135deg, var(--accent-2) 0%, var(--cyan) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat .v.p { background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat .v.o { background: linear-gradient(135deg, var(--warn) 0%, var(--pink) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Features */
+  .features { padding: 96px 24px 48px; }
+  .section-head { text-align: center; margin-bottom: 56px; }
+  .section-head .eyebrow { display: inline-block; color: var(--accent-2); font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+  .section-head h2 { font-size: clamp(32px, 5vw, 48px); font-weight: 700; letter-spacing: -0.03em; margin-bottom: 12px; }
+  .section-head p { color: var(--muted); font-size: 17px; max-width: 560px; margin: 0 auto; line-height: 1.5; }
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .feat { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; transition: all 0.2s; }
+  .feat:hover { border-color: var(--muted); transform: translateY(-2px); }
+  .feat .icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; font-size: 20px; }
+  .feat h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .feat p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+  .feat pre { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: var(--text); overflow-x: auto; line-height: 1.5; }
+  .feat pre .k { color: var(--purple); }
+  .feat pre .s { color: var(--accent); }
+  .feat pre .f { color: var(--accent-2); }
+  .feat pre .c { color: #6e6e73; }
+  .feat.green .icon  { background: rgba(48,209,88,0.15);  color: var(--accent);   border: 1px solid rgba(48,209,88,0.3); }
+  .feat.blue .icon   { background: rgba(41,151,255,0.15); color: var(--accent-2); border: 1px solid rgba(41,151,255,0.3); }
+  .feat.orange .icon { background: rgba(255,159,10,0.15); color: var(--warn);     border: 1px solid rgba(255,159,10,0.3); }
+  .feat.pink .icon   { background: rgba(255,55,95,0.15);  color: var(--pink);     border: 1px solid rgba(255,55,95,0.3); }
+  .feat.purple .icon { background: rgba(191,90,242,0.15); color: var(--purple);   border: 1px solid rgba(191,90,242,0.3); }
+  .feat.cyan .icon   { background: rgba(100,210,255,0.15); color: var(--cyan);    border: 1px solid rgba(100,210,255,0.3); }
+
+  /* Demo sections */
+  .wrap > section { margin-bottom: 72px; }
+  .wrap > section > h2 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 15px; line-height: 1.6; }
+
+  /* Tilt cards */
+  .tilt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .tilt-card { background: linear-gradient(135deg, #1a1a1c 0%, #0a0a0a 100%); border: 1px solid var(--border); border-radius: 20px; padding: 28px; will-change: transform; cursor: pointer; position: relative; overflow: hidden; }
+  .tilt-card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(200px circle at var(--mx, 50%) var(--my, 50%), rgba(41,151,255,0.15), transparent 60%); pointer-events: none; }
+  .tilt-card h4 { font-size: 20px; font-weight: 600; margin-bottom: 8px; position: relative; }
+  .tilt-card p { color: var(--muted); font-size: 13px; position: relative; }
+
+  /* Magnet buttons */
+  .magwrap { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; padding: 40px 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; }
+  .mag-btn { padding: 18px 32px; border-radius: 999px; background: var(--purple); color: #fff; font-weight: 600; font-size: 15px; border: 0; cursor: pointer; box-shadow: 0 8px 32px rgba(191,90,242,0.3); will-change: transform; }
+  .mag-btn.accent  { background: var(--accent); color: #0a0a0a; box-shadow: 0 8px 32px rgba(48,209,88,0.3); }
+  .mag-btn.pink    { background: var(--pink); box-shadow: 0 8px 32px rgba(255,55,95,0.3); }
+  .mag-btn.orange  { background: var(--warn); color: #0a0a0a; box-shadow: 0 8px 32px rgba(255,159,10,0.3); }
+
+  /* Gesture pad */
+  .gesture-pad { position: relative; height: 320px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; display: flex; align-items: center; justify-content: center; user-select: none; touch-action: none; overflow: hidden; }
+  .gesture-pad .target {
+    width: 160px; height: 160px; border-radius: 20px;
+    background: linear-gradient(135deg, var(--accent-2), var(--purple));
+    box-shadow: 0 16px 48px rgba(41,151,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 14px;
+    will-change: transform;
+  }
+  .gesture-pad .pad-hint { position: absolute; top: 16px; left: 20px; font-size: 12px; color: var(--muted); font-family: 'SF Mono', Menlo, monospace; line-height: 1.6; }
+  .gesture-pad .pad-hint kbd { color: var(--text); }
+  .gesture-badge { position: absolute; bottom: 16px; right: 20px; padding: 8px 16px; border-radius: 999px; background: #000; border: 1px solid var(--accent-2); color: var(--accent-2); font-family: 'SF Mono', Menlo, monospace; font-size: 13px; opacity: 0; transition: opacity 0.3s; }
+  .gesture-badge.show { opacity: 1; }
+
+  /* Trackpad detector */
+  .tp-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .tp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .tp-card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .tp-card .value { font-size: 24px; font-weight: 700; font-family: 'SF Mono', Menlo, monospace; }
+  .tp-card .value.kind { color: var(--purple); }
+  .tp-card .value.delta { color: var(--accent-2); }
+  .tp-card .value.pinch { color: var(--pink); }
+  .tp-card .hint { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.5; }
+
+  /* Idle demo */
+  .idle-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; text-align: center; font-family: 'SF Mono', Menlo, monospace; transition: all 0.4s; }
+  .idle-box.is-idle { border-color: var(--pink); background: rgba(255,55,95,0.06); }
+  .idle-box .state { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .idle-box.is-idle .state { color: var(--pink); }
+  .idle-box:not(.is-idle) .state { color: var(--accent); }
+
+  /* Install block */
+  .install { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .install-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: #000; overflow-x: auto; }
+  .install-tabs button { background: transparent; border: 0; color: var(--muted); padding: 14px 20px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s; }
+  .install-tabs button:hover { color: var(--text); }
+  .install-tabs button.active { color: var(--accent-2); border-bottom-color: var(--accent-2); }
+  .install-body { position: relative; background: #000; }
+  .install-body pre { padding: 22px 60px 22px 24px; font-family: 'SF Mono', Menlo, monospace; font-size: 14px; color: var(--text); overflow-x: auto; line-height: 1.6; margin: 0; }
+  .install-body pre .c { color: #6e6e73; }
+  .install-body pre .k { color: var(--purple); }
+  .install-body pre .s { color: var(--accent); }
+  .install-body pre .f { color: var(--accent-2); }
+  .copy-btn { position: absolute; top: 14px; right: 14px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { color: var(--text); border-color: var(--muted); }
+  .copy-btn.done { color: var(--accent); border-color: rgba(48,209,88,0.4); }
+
+  /* Console */
+  .console-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .console-head .pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; }
+  .console { background: #000; border: 1px solid var(--border); border-radius: 16px; padding: 16px; min-height: 200px; max-height: 280px; overflow-y: auto; font-family: 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.7; }
+  .console .line { color: var(--muted); }
+  .console .line .ts { color: #48484a; margin-right: 12px; }
+  .console .line .ev { color: var(--accent-2); }
+  .console .line .val { color: var(--accent); }
+  .console .line .warn { color: var(--pink); }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 96px; padding: 32px 24px; border-top: 1px solid var(--border); }
+  footer a { color: var(--accent-2); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="cursor-ring" id="cursorRing"></div>
+
+<section class="hero">
+  <div class="wrap" style="max-width: 1200px;">
+    <div class="badges">
+      <span class="badge accent">v1.0.0 — released</span>
+      <span class="badge">2.9KB gzip</span>
+      <span class="badge">0 dependencies</span>
+      <span class="badge">TypeScript-first</span>
+      <span class="badge">MIT license</span>
+    </div>
+
+    <h1>mousepad<span class="dot">.</span>js</h1>
+    <p class="tagline">Pointer intelligence for the web. Gestures, cursor effects, and trackpad smarts — unified across mouse, touch, pen, and trackpad.</p>
+
+    <div class="cta">
+      <a class="btn primary" href="#playground">Play with it →</a>
+      <a class="btn" href="#install">Install</a>
+      <a class="btn" href="#features">Explore features</a>
+    </div>
+
+    <div class="playground" id="playground">
+      <div class="pg-hint">Move the cursor. <b>Trail</b>, <b>velocity</b>, and <b>input kind</b> detected live.</div>
+      <div class="pg-stats">
+        kind: <span class="kind" id="pgKind">detecting…</span>
+        &nbsp;|&nbsp; speed: <span class="val" id="pgSpeed">0</span> px/s
+        &nbsp;|&nbsp; idle: <span class="val" id="pgIdle">active</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="v g">2.9</div><div class="l">KB gzipped</div></div>
+      <div class="stat"><div class="v p">7</div><div class="l">Gestures</div></div>
+      <div class="stat"><div class="v o">4</div><div class="l">Cursor effects</div></div>
+      <div class="stat"><div class="v g" id="statMoves">0</div><div class="l">Pointer moves</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">One API, every input</span>
+      <h2>Everything the pointer can do.</h2>
+      <p>Backed by Pointer Events — mouse, trackpad, touch, pen all flow through the same API.</p>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feat blue">
+        <div class="icon">✣</div>
+        <h3>Gestures</h3>
+        <p><code>tap</code>, <code>doubletap</code>, <code>longpress</code>, <code>pan</code>, <code>swipe</code>, <code>pinch</code>, <code>rotate</code> — unified across inputs.</p>
+<pre><span class="k">const</span> g = MousePad.<span class="f">gesture</span>(el);
+g.<span class="f">on</span>(<span class="s">'swipe'</span>, e =&gt; e.direction);</pre>
+      </div>
+
+      <div class="feat purple">
+        <div class="icon">✦</div>
+        <h3>Cursor tracker</h3>
+        <p>Global position, velocity, and idle state. React to the cursor from anywhere.</p>
+<pre>MousePad.cursor.<span class="f">on</span>(<span class="s">'move'</span>,
+  ({x, y, speed}) =&gt; ...);</pre>
+      </div>
+
+      <div class="feat pink">
+        <div class="icon">➤</div>
+        <h3>Magnetic buttons</h3>
+        <p>One call, and your button pulls toward the cursor with configurable strength + easing.</p>
+<pre>MousePad.<span class="f">magnet</span>(btn, {
+  range: <span class="s">140</span>, strength: <span class="s">0.5</span>
+});</pre>
+      </div>
+
+      <div class="feat green">
+        <div class="icon">◎</div>
+        <h3>3D tilt cards</h3>
+        <p>Tilt-on-hover with perspective, scale, and easing. GPU-composited.</p>
+<pre>MousePad.<span class="f">tilt</span>(card, {
+  max: <span class="s">15</span>, scale: <span class="s">1.04</span>
+});</pre>
+      </div>
+
+      <div class="feat cyan">
+        <div class="icon">◌</div>
+        <h3>Trackpad detect</h3>
+        <p>Heuristic distinguishes mouse from trackpad from wheel events. Unified pinch-zoom stream.</p>
+<pre>MousePad.trackpad.isTrackpad
+MousePad.trackpad.<span class="f">on</span>(<span class="s">'pinch'</span>, ...);</pre>
+      </div>
+
+      <div class="feat orange">
+        <div class="icon">◐</div>
+        <h3>Idle detection</h3>
+        <p>Fires when the cursor hasn't moved. Perfect for auto-hiding chrome or pausing heavy animation.</p>
+<pre>cursor.<span class="f">on</span>(<span class="s">'idle'</span>,   () =&gt; hideUI());
+cursor.<span class="f">on</span>(<span class="s">'active'</span>, () =&gt; showUI());</pre>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <section id="install">
+    <h2>Install</h2>
+    <p class="sub">2.9KB gzipped. Zero runtime dependencies. Ships ESM, UMD, and TypeScript declarations.</p>
+
+    <div class="install" style="margin-bottom: 28px;">
+      <div class="install-tabs" role="tablist">
+        <button class="active" data-tab="npm">npm</button>
+        <button data-tab="pnpm">pnpm</button>
+        <button data-tab="yarn">yarn</button>
+        <button data-tab="bun">bun</button>
+        <button data-tab="cdn">CDN</button>
+      </div>
+      <div class="install-body">
+        <button class="copy-btn" id="copyInstall">Copy</button>
+        <pre id="installCode" data-cmd="npm">npm install @buildwithdarsh/mousepad.js</pre>
+      </div>
+    </div>
+
+    <div class="install">
+      <div class="install-tabs" style="justify-content: flex-start;">
+        <button class="active" disabled style="color: var(--text); border-bottom-color: var(--accent-2); cursor: default;">usage.ts</button>
+      </div>
+      <div class="install-body">
+        <pre><span class="k">import</span> MousePad <span class="k">from</span> <span class="s">'@buildwithdarsh/mousepad.js'</span>;
+
+MousePad.<span class="f">init</span>();
+
+<span class="c">// Gestures — works on mouse, trackpad, touch, and pen</span>
+<span class="k">const</span> g = MousePad.<span class="f">gesture</span>(card);
+g.<span class="f">on</span>(<span class="s">'tap'</span>,       e =&gt; console.log(e.x, e.y));
+g.<span class="f">on</span>(<span class="s">'doubletap'</span>, e =&gt; zoomIn(e));
+g.<span class="f">on</span>(<span class="s">'longpress'</span>, e =&gt; showMenu(e));
+g.<span class="f">on</span>(<span class="s">'swipe'</span>,     e =&gt; console.log(e.direction));
+g.<span class="f">on</span>(<span class="s">'pan'</span>,       e =&gt; translate(e.dx, e.dy));
+g.<span class="f">on</span>(<span class="s">'pinch'</span>,     e =&gt; setScale(e.scale));
+g.<span class="f">on</span>(<span class="s">'rotate'</span>,    e =&gt; setAngle(e.angle));
+
+<span class="c">// Cursor utilities</span>
+MousePad.<span class="f">magnet</span>(btn,    { range: <span class="s">120</span>, strength: <span class="s">0.4</span> });
+MousePad.<span class="f">tilt</span>(card,     { max: <span class="s">15</span>, scale: <span class="s">1.04</span> });
+MousePad.<span class="f">follow</span>(cursor, { ease: <span class="s">0.15</span> });
+
+<span class="c">// Global cursor tracker</span>
+MousePad.cursor.<span class="f">on</span>(<span class="s">'move'</span>, ({x, y, speed}) =&gt; ...);
+MousePad.cursor.<span class="f">on</span>(<span class="s">'idle'</span>,   () =&gt; hideChrome());
+MousePad.cursor.<span class="f">on</span>(<span class="s">'active'</span>, () =&gt; showChrome());
+
+<span class="c">// Trackpad detection + precise wheel</span>
+MousePad.trackpad.<span class="f">on</span>(<span class="s">'pinch'</span>, ({dy}) =&gt; zoom(dy));
+<span class="k">if</span> (MousePad.trackpad.isTrackpad) enableSmoothScroll();</pre>
+      </div>
+    </div>
+  </section>
+
+  <section id="gesturedemo">
+    <h2>Gestures</h2>
+    <p class="sub">Tap, double-tap, long-press, swipe, pan, pinch, rotate — all on the same element. <em>Works on trackpad</em> (click + drag), touch screens, and pen. Every gesture logs below.</p>
+    <div class="gesture-pad" id="gesturePad">
+      <div class="pad-hint">
+        <kbd>tap</kbd> · <kbd>double-tap</kbd> · <kbd>long-press</kbd><br>
+        <kbd>swipe</kbd> (flick fast) · <kbd>pan</kbd> (drag)
+      </div>
+      <div class="target" id="gestureTarget">Gesture me</div>
+      <div class="gesture-badge" id="gestureBadge">tap</div>
+    </div>
+  </section>
+
+  <section id="magdemo">
+    <h2>Magnetic buttons</h2>
+    <p class="sub">Hover near any button — it leans toward the cursor with spring easing. Range and strength are configurable per element.</p>
+    <div class="magwrap" id="magwrap">
+      <button class="mag-btn">Get Started</button>
+      <button class="mag-btn accent">Documentation</button>
+      <button class="mag-btn pink">Examples</button>
+      <button class="mag-btn orange">Changelog</button>
+    </div>
+  </section>
+
+  <section id="tiltdemo">
+    <h2>3D tilt cards</h2>
+    <p class="sub">Cursor position inside the card drives rotation, perspective, scale, and a radial spotlight — entirely CSS transforms, GPU-composited.</p>
+    <div class="tilt-grid">
+      <div class="tilt-card"><h4>Pointer Events</h4><p>One API for mouse, trackpad, touch, and pen.</p></div>
+      <div class="tilt-card"><h4>Tiny</h4><p>2.9KB gzipped. Every feature opt-in.</p></div>
+      <div class="tilt-card"><h4>Typed</h4><p>TypeScript-strict. Every option documented.</p></div>
+      <div class="tilt-card"><h4>Zero deps</h4><p>No runtime dependencies. Nothing to audit.</p></div>
+    </div>
+  </section>
+
+  <section id="tpdemo">
+    <h2>Trackpad detection</h2>
+    <p class="sub">Scroll over the boxes below. The library reads <code>WheelEvent.deltaMode</code> + delta granularity to distinguish mouse wheels from trackpad swipes. Pinch-to-zoom on a trackpad comes through as a separate event.</p>
+    <div class="tp-wrap" id="tpwrap" style="touch-action: none;">
+      <div class="tp-card">
+        <div class="label">Input kind</div>
+        <div class="value kind" id="tpKind">waiting…</div>
+        <div class="hint">Scroll inside any box to detect.</div>
+      </div>
+      <div class="tp-card">
+        <div class="label">Last wheel Δ</div>
+        <div class="value delta" id="tpDelta">—</div>
+        <div class="hint">dx, dy from the last wheel event.</div>
+      </div>
+      <div class="tp-card">
+        <div class="label">Pinch zoom</div>
+        <div class="value pinch" id="tpPinch">—</div>
+        <div class="hint">Trackpad pinch (Ctrl+wheel) is separated.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="idledemo">
+    <h2>Idle detection</h2>
+    <p class="sub">Stop moving your cursor for 2 seconds. The state flips to <em>idle</em>. Classic use case: auto-hide video controls or cursor UI.</p>
+    <div class="idle-box" id="idleBox">
+      <div class="state" id="idleState">ACTIVE</div>
+      <div style="color: var(--muted); font-size: 14px;">Last move: <span id="idleAt">just now</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Event console</h2>
+    <p class="sub">Every gesture, trackpad event, and idle state change streams here.</p>
+    <div class="console-head">
+      <span class="pill"><span id="evCount">0</span> events</span>
+      <button class="btn" id="clearLog" style="padding: 6px 14px; font-size: 12px;">clear</button>
+    </div>
+    <div class="console" id="console"></div>
+  </section>
+
+</div>
+
+<footer>
+  Built by <a href="https://build.withdarsh.com">Darsh Gupta</a> · MIT License
+</footer>
+
+<script src="dist/mousepad.umd.js"></script>
+<script>
+(function () {
+  if (!window.MousePad) { console.error('mousepad.js failed to load'); return; }
+  var M = window.MousePad;
+  M.init();
+
+  var logEl = document.getElementById('console');
+  var evCountEl = document.getElementById('evCount');
+  var evCount = 0;
+  function log(type, msg, cls) {
+    evCount++; evCountEl.textContent = evCount;
+    var t = new Date().toLocaleTimeString();
+    var l = document.createElement('div'); l.className = 'line';
+    l.innerHTML = '<span class="ts">' + t + '</span><span class="ev">' + type + '</span> <span class="' + (cls||'val') + '">' + msg + '</span>';
+    logEl.insertBefore(l, logEl.firstChild);
+    while (logEl.children.length > 60) logEl.removeChild(logEl.lastChild);
+  }
+  document.getElementById('clearLog').addEventListener('click', function () {
+    logEl.innerHTML = ''; evCount = 0; evCountEl.textContent = 0;
+  });
+
+  /* =======================
+     Install tabs + copy
+     ======================= */
+  var INSTALL_CMDS = {
+    npm:  'npm install @buildwithdarsh/mousepad.js',
+    pnpm: 'pnpm add @buildwithdarsh/mousepad.js',
+    yarn: 'yarn add @buildwithdarsh/mousepad.js',
+    bun:  'bun add @buildwithdarsh/mousepad.js',
+    cdn:  '<script src="https://cdn.jsdelivr.net/npm/@buildwithdarsh/mousepad.js"></' + 'script>',
+  };
+  var installCode = document.getElementById('installCode');
+  var installTabs = document.querySelectorAll('#install .install-tabs button[data-tab]');
+  installTabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      installTabs.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      installCode.textContent = INSTALL_CMDS[btn.dataset.tab];
+    });
+  });
+  document.getElementById('copyInstall').addEventListener('click', function () {
+    var btn = this;
+    navigator.clipboard.writeText(installCode.textContent).then(function () {
+      btn.textContent = 'Copied!'; btn.classList.add('done');
+      setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1400);
+    });
+  });
+
+  /* =======================
+     Hero playground — cursor ring + trail + stats
+     ======================= */
+  var ring = document.getElementById('cursorRing');
+  var pg = document.getElementById('playground');
+  var pgKind = document.getElementById('pgKind');
+  var pgSpeed = document.getElementById('pgSpeed');
+  var pgIdle = document.getElementById('pgIdle');
+  var statMoves = document.getElementById('statMoves');
+  var moves = 0;
+
+  var lastTrailX = null, lastTrailY = null;
+  var TRAIL_SPACING = 8;
+  var TRAIL_MAX = 22;          // cap visible trail length
+  var trailQueue = [];          // FIFO of live dots
+
+  function dropTrail(x, y, rect) {
+    var dot = document.createElement('div');
+    dot.className = 'trail-dot';
+    dot.style.left = (x - rect.left - 8) + 'px';
+    dot.style.top  = (y - rect.top  - 8) + 'px';
+    pg.appendChild(dot);
+    dot.animate([
+      { opacity: 0.9, transform: 'scale(1)' },
+      { opacity: 0,   transform: 'scale(0.4)' },
+    ], { duration: 360, easing: 'cubic-bezier(.2,.6,.3,1)' });
+    var kill = setTimeout(function () { dot.remove(); }, 360);
+    trailQueue.push({ dot: dot, kill: kill });
+
+    // Kill oldest so a stale "pause dot" can't be left behind
+    while (trailQueue.length > TRAIL_MAX) {
+      var old = trailQueue.shift();
+      clearTimeout(old.kill);
+      old.dot.remove();
+    }
+  }
+
+  M.cursor.on('move', function (e) {
+    pgSpeed.textContent = Math.round(e.speed);
+    moves++;
+    if (moves % 10 === 0) statMoves.textContent = moves;
+
+    var rect = pg.getBoundingClientRect();
+    var inside = e.x > rect.left && e.x < rect.right && e.y > rect.top && e.y < rect.bottom;
+
+    if (!inside) {
+      ring.classList.remove('show');
+      lastTrailX = null; lastTrailY = null;
+      return;
+    }
+    ring.classList.add('show');
+    ring.style.transform = 'translate3d(' + e.x + 'px, ' + e.y + 'px, 0)';
+
+    // Interpolate dots between the last sample and this one so the trail
+    // never has visible gaps regardless of pointermove rate.
+    if (lastTrailX === null) {
+      dropTrail(e.x, e.y, rect);
+    } else {
+      var dx = e.x - lastTrailX;
+      var dy = e.y - lastTrailY;
+      var dist = Math.hypot(dx, dy);
+      var steps = Math.ceil(dist / TRAIL_SPACING);
+      for (var i = 1; i <= steps; i++) {
+        var t = i / steps;
+        dropTrail(lastTrailX + dx * t, lastTrailY + dy * t, rect);
+      }
+    }
+    lastTrailX = e.x; lastTrailY = e.y;
+  });
+
+  M.cursor.on('idle',   function () { pgIdle.textContent = 'idle'; pgIdle.style.color = 'var(--pink)'; });
+  M.cursor.on('active', function () { pgIdle.textContent = 'active'; pgIdle.style.color = 'var(--accent)'; });
+
+  M.trackpad.on('kind', function (kind) {
+    pgKind.textContent = kind;
+    document.getElementById('tpKind').textContent = kind;
+    log('trackpad', 'detected ' + kind);
+  });
+
+  /* =======================
+     Gestures
+     ======================= */
+  var target = document.getElementById('gestureTarget');
+  var pad = document.getElementById('gesturePad');
+  var badge = document.getElementById('gestureBadge');
+  var tx = 0, ty = 0, ts = 1, tr = 0;
+  function applyT() {
+    target.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + ts + ') rotate(' + tr + 'rad)';
+  }
+  function showBadge(text) {
+    badge.textContent = text;
+    badge.classList.add('show');
+    clearTimeout(showBadge._t);
+    showBadge._t = setTimeout(function () { badge.classList.remove('show'); }, 1000);
+  }
+  var g = M.gesture(target);
+  g.on('tap',       function (e) { showBadge('tap');       log('gesture', 'tap'); });
+  g.on('doubletap', function (e) { showBadge('double-tap'); log('gesture', 'double-tap', 'warn'); ts = Math.min(1.6, ts + 0.15); applyT(); });
+  g.on('longpress', function (e) { showBadge('long-press · ' + Math.round(e.duration) + 'ms'); log('gesture', 'long-press', 'warn'); ts = 1; tx = 0; ty = 0; tr = 0; applyT(); });
+  g.on('pan',       function (e) { tx += e.dx; ty += e.dy; applyT(); });
+  g.on('panend',    function () {});
+  g.on('swipe',     function (e) { showBadge('swipe ' + e.direction); log('gesture', 'swipe ' + e.direction + ' @ ' + Math.round(e.velocity) + 'px/s', 'warn'); });
+  g.on('pinch',     function (e) { ts = Math.max(0.4, Math.min(2.5, e.scale)); applyT(); showBadge('pinch · ' + e.scale.toFixed(2) + 'x'); });
+  g.on('rotate',    function (e) { tr = e.angle; applyT(); });
+
+  /* =======================
+     Magnetic buttons
+     ======================= */
+  document.querySelectorAll('.mag-btn').forEach(function (btn) {
+    M.magnet(btn, { range: 140, strength: 0.45, ease: 0.2 });
+  });
+
+  /* =======================
+     Tilt cards
+     ======================= */
+  document.querySelectorAll('.tilt-card').forEach(function (card) {
+    M.tilt(card, { max: 14, scale: 1.04, perspective: 1000, ease: 0.2 });
+    card.addEventListener('pointermove', function (e) {
+      var rect = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - rect.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - rect.top)  + 'px');
+    });
+  });
+
+  /* =======================
+     Trackpad detector
+     ======================= */
+  var tpDelta = document.getElementById('tpDelta');
+  var tpPinch = document.getElementById('tpPinch');
+  M.trackpad.on('wheel', function (w) {
+    tpDelta.textContent = w.dx.toFixed(1) + ', ' + w.dy.toFixed(1);
+  });
+  M.trackpad.on('pinch', function (w) {
+    tpPinch.textContent = w.dy.toFixed(1);
+    log('trackpad', 'pinch Δ=' + w.dy.toFixed(1), 'warn');
+  });
+
+  /* =======================
+     Idle demo
+     ======================= */
+  var idleBox = document.getElementById('idleBox');
+  var idleState = document.getElementById('idleState');
+  var idleAt = document.getElementById('idleAt');
+  var lastMoveAt = Date.now();
+  M.cursor.on('move', function () { lastMoveAt = Date.now(); });
+  M.cursor.on('idle', function () {
+    idleBox.classList.add('is-idle');
+    idleState.textContent = 'IDLE';
+    log('idle', 'cursor went idle', 'warn');
+  });
+  M.cursor.on('active', function () {
+    idleBox.classList.remove('is-idle');
+    idleState.textContent = 'ACTIVE';
+    log('idle', 'cursor active again');
+  });
+  setInterval(function () {
+    var secs = Math.floor((Date.now() - lastMoveAt) / 1000);
+    idleAt.textContent = secs === 0 ? 'just now' : secs + 's ago';
+  }, 500);
+})();
+</script>
+</body>
+</html>

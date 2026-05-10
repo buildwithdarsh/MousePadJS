@@ -1,0 +1,55 @@
+{
+  "name": "@buildwithdarsh/mousepad.js",
+  "version": "1.0.0",
+  "description": "Pointer intelligence for the web — gestures, cursor effects, and trackpad smarts. Unified mouse, touch, pen, and trackpad input.",
+  "main": "dist/mousepad.umd.js",
+  "module": "dist/mousepad.esm.js",
+  "types": "dist/mousepad.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mousepad.d.ts",
+      "import": "./dist/mousepad.esm.js",
+      "require": "./dist/mousepad.umd.js"
+    }
+  },
+  "files": [
+    "dist/mousepad.umd.js",
+    "dist/mousepad.umd.js.map",
+    "dist/mousepad.esm.js",
+    "dist/mousepad.esm.js.map",
+    "dist/mousepad.d.ts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rollup -c && rm -rf example/dist && cp -r dist example/dist",
+    "typecheck": "tsc --noEmit",
+    "dev": "rollup -c -w"
+  },
+  "keywords": [
+    "mouse",
+    "touchpad",
+    "trackpad",
+    "pointer",
+    "gestures",
+    "tap",
+    "swipe",
+    "pinch",
+    "cursor",
+    "magnet",
+    "parallax",
+    "tilt"
+  ],
+  "author": "Darsh Gupta",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.1.2",
+    "rollup": "^4.34.8",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.3"
+  }
+}
