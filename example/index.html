@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>mousepad.js — pointer intelligence for the web</title>
+<title>MousePadJS — pointer intelligence for the web</title>
 <meta name="description" content="Gestures, cursor effects, and trackpad smarts. Unified mouse, touch, pen, and trackpad input. 2.9KB gzipped, zero deps." />
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <style>
@@ -209,7 +209,7 @@
       <span class="badge">MIT license</span>
     </div>
 
-    <h1>mousepad<span class="dot">.</span>js</h1>
+    <h1>MousePad<span class="dot">JS</span></h1>
     <p class="tagline">Pointer intelligence for the web. Gestures, cursor effects, and trackpad smarts — unified across mouse, touch, pen, and trackpad.</p>
 
     <div class="cta">
@@ -319,7 +319,7 @@ cursor.<span class="f">on</span>(<span class="s">'active'</span>, () =&gt; showU
       </div>
       <div class="install-body">
         <button class="copy-btn" id="copyInstall">Copy</button>
-        <pre id="installCode" data-cmd="npm">npm install @buildwithdarsh/mousepad.js</pre>
+        <pre id="installCode" data-cmd="npm">npm install @buildwithdarsh/mousepadjs</pre>
       </div>
     </div>
 
@@ -328,7 +328,7 @@ cursor.<span class="f">on</span>(<span class="s">'active'</span>, () =&gt; showU
         <button class="active" disabled style="color: var(--text); border-bottom-color: var(--accent-2); cursor: default;">usage.ts</button>
       </div>
       <div class="install-body">
-        <pre><span class="k">import</span> MousePad <span class="k">from</span> <span class="s">'@buildwithdarsh/mousepad.js'</span>;
+        <pre><span class="k">import</span> MousePad <span class="k">from</span> <span class="s">'@buildwithdarsh/mousepadjs'</span>;
 
 MousePad.<span class="f">init</span>();
 
@@ -444,7 +444,7 @@ MousePad.trackpad.<span class="f">on</span>(<span class="s">'pinch'</span>, ({dy
 <script src="dist/mousepad.umd.js"></script>
 <script>
 (function () {
-  if (!window.MousePad) { console.error('mousepad.js failed to load'); return; }
+  if (!window.MousePad) { console.error('MousePadJS failed to load'); return; }
   var M = window.MousePad;
   M.init();
 
@@ -467,11 +467,11 @@ MousePad.trackpad.<span class="f">on</span>(<span class="s">'pinch'</span>, ({dy
      Install tabs + copy
      ======================= */
   var INSTALL_CMDS = {
-    npm:  'npm install @buildwithdarsh/mousepad.js',
-    pnpm: 'pnpm add @buildwithdarsh/mousepad.js',
-    yarn: 'yarn add @buildwithdarsh/mousepad.js',
-    bun:  'bun add @buildwithdarsh/mousepad.js',
-    cdn:  '<script src="https://cdn.jsdelivr.net/npm/@buildwithdarsh/mousepad.js"></' + 'script>',
+    npm:  'npm install @buildwithdarsh/mousepadjs',
+    pnpm: 'pnpm add @buildwithdarsh/mousepadjs',
+    yarn: 'yarn add @buildwithdarsh/mousepadjs',
+    bun:  'bun add @buildwithdarsh/mousepadjs',
+    cdn:  '<script src="https://cdn.jsdelivr.net/npm/@buildwithdarsh/mousepadjs"></' + 'script>',
   };
   var installCode = document.getElementById('installCode');
   var installTabs = document.querySelectorAll('#install .install-tabs button[data-tab]');

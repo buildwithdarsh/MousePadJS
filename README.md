@@ -4,14 +4,14 @@
 
 <br />
 
-<img src="https://img.shields.io/badge/mousepad.js-v1.0.0-2997ff?style=for-the-badge&labelColor=000000" alt="version" />
+<img src="https://img.shields.io/badge/mousepadjs-v1.0.0-2997ff?style=for-the-badge&labelColor=000000" alt="version" />
 <img src="https://img.shields.io/badge/gzip-~2.9KB-30d158?style=for-the-badge&labelColor=000000" alt="gzip" />
 <img src="https://img.shields.io/badge/dependencies-0-bf5af2?style=for-the-badge&labelColor=000000" alt="deps" />
 <img src="https://img.shields.io/badge/license-MIT-ff9f0a?style=for-the-badge&labelColor=000000" alt="license" />
 
 <br /><br />
 
-# mousepad.js
+# MousePadJS
 
 **Pointer intelligence for the web.**
 
@@ -21,22 +21,22 @@ Gestures, cursor effects, and trackpad smarts — unified across mouse, touch, p
 
 ---
 
-## Why mousepad.js?
+## Why MousePadJS?
 
 Hammer.js is abandoned. interact.js is heavy. use-gesture is React-only. Modern apps need a tiny, framework-agnostic library built on Pointer Events that just handles the full input picture — including trackpad nuance like pinch-to-zoom and mouse-vs-trackpad detection.
 
-`mousepad.js` does that in 2.9KB, zero deps.
+`MousePadJS` does that in 2.9KB, zero deps.
 
 ---
 
 ## Quick Start
 
 ```bash
-npm install @buildwithdarsh/mousepad.js
+npm install @buildwithdarsh/mousepadjs
 ```
 
 ```ts
-import MousePad from '@buildwithdarsh/mousepad.js';
+import MousePad from '@buildwithdarsh/mousepadjs';
 
 MousePad.init();
 

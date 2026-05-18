@@ -1,5 +1,5 @@
 {
-  "name": "@buildwithdarsh/mousepad.js",
+  "name": "@buildwithdarsh/mousepadjs",
   "version": "1.0.0",
   "description": "Pointer intelligence for the web — gestures, cursor effects, and trackpad smarts. Unified mouse, touch, pen, and trackpad input.",
   "main": "dist/mousepad.umd.js",
